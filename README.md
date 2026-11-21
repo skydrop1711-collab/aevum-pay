@@ -107,31 +107,27 @@ run funding invoice #4 (10 tUSD8, cap 50 → remaining 40), tx
 `0x5e0dfeeeb78ce3f609d0ae52d6801189d56b9887de9081386962c58580919c5e`.
 See `contracts/README.md` for the full tx table.
 
-### Aevum testnet (chain 44005) — BLOCKED on faucet (human step needed)
-
-The deployer wallet is ready but unfunded:
+### Aevum testnet (chain 44005) — LIVE, end-to-end verified
 
 | | |
 | --- | --- |
-| Deployer | `0xFD79641A2016a66689ca68406be7be98918A74f3` |
-| Balance | **0 tQDAY, 0 tUSD8** (verified via `cast balance`) |
-| Keystore | `~/.foundry/keystores/aevum-deployer` (testnet-only throwaway; password held by the operator, never committed) |
+| Escrow | `0x79c322BA58fdF1FDFE347d52D8f58D5F7708aD54` |
+| Deploy tx | `0x10d67b83a9c9057e786faf83650af12fe86329cff61e6993a3ea0ba2641e3d4c` |
+| Deploy block | 3765006 (status 1, gas 1,550,004 @ 1 gwei) |
+| Explorer | https://explorer-test.qday.info/address/0x79c322BA58fdF1FDFE347d52D8f58D5F7708aD54 |
+| Deployer | `0xFD79641A2016a66689ca68406be7be98918A74f3` (fresh testnet-only key; funded via QDay Discord `/faucet`: 1 tQDAY + 5 tUSD8) |
+| Agent | `0x637d5EE87111b106D04a79A99D4A4728Fb2B5ca0` (fresh testnet-only key, cap 50 tUSD8) |
 
-**What is needed:** the web faucet (https://faucet.qday.info) requires a browser
-wallet connection + a bot check, and the recipient must hold ~0.0001 ETH, 1 USDT, or
-1 USDC on Ethereum mainnet — the fresh deployer holds none. A human must open the
-faucet, connect an established wallet, pass the bot check, and either claim 5 tQDAY
-to that wallet and send ~0.1 tQDAY to the deployer, or enter the deployer address as
-the recipient. Alternative: Discord `/faucet` (1 tQDAY + 5 tUSD8, needs the Verified
-role in QDay Discord).
+End-to-end on testnet (all verified on-chain, 22 Nov 2026):
+- Payer approved 100 tUSD8 for the escrow and authorized the agent with a 50 tUSD8 cap.
+- Invoice #1 (2 tUSD8, payee = agent) created — tx `0x439666f6f6b22b5874ed500eab3a7f51c3b69d72d7e8f469206e0c6b128a523a`.
+- Agent funded it via `fundInvoiceFor` — tx `0x29b963ede97dc5367b811b1485748ab12b13ef54c404f1d955b5ab14dddf8fe8` ("Invoice #1 FUNDED — 2.0 tUSD8").
+- Payee confirmed delivery — tx `0x796b0a2f45af2560e8280369f2c1a7d56d6b14cd4a4150b03c5fdd6bf85504c8` (Transfer 2 tUSD8 escrow → payee + `InvoiceReleased` event). Escrow tUSD8 balance: 2 → 0.
+- (Invoice #0, 10 tUSD8, was left unfunded on purpose: the payer only held 5 tUSD8 at the time — a test-sizing mistake, not a contract issue.)
 
-Once funded, deploy with:
-```bash
-forge script script/Deploy.s.sol --rpc-url https://rpc-test.qday.info \
-  --account aevum-deployer --broadcast --legacy
-```
-then record the address in `contracts/deployments/testnet.json` and set
-`ESCROW_ADDRESS` (+ `DEPLOYMENT_BLOCK`) in `web/app.js` and `agent/.env`.
+Note: contract verification on the Aevum explorer does not work yet — this README
+links the contract addresses and the exact commit instead. See
+`contracts/deployments/testnet.json` for the full deployment record.
 
 ## Test results
 
@@ -141,6 +137,7 @@ then record the address in `contracts/deployments/testnet.json` and set
 | Fork tests (real tUSD8, anvil fork) | **6 passed, 0 failed** |
 | Fork E2E (deploy + create/fund/confirm/refund/expire/agent) | **all succeeded**, statuses verified on-chain |
 | Agent script vs fork (live run, invoice #4) | **FUNDED**, cap 50 → remaining 40, exit 0 |
+| **Testnet E2E (chain 44005, live)** | **all succeeded**: invoice #1 (2 tUSD8) created → agent funded via `fundInvoiceFor` → payee confirmed → 2 tUSD8 released, escrow balance 0 |
 | Frontend ABI vs built contract ABI | **match** (17 functions + 9 events; ERC20 helpers are the token's, not the escrow's) |
 | Frontend serving + live RPC reads | chain 44005, block 3,763,273, tUSD8 name/symbol/decimals confirmed |
 
