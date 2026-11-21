@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aevum Pay — Escrow Invoices with Agent Spend Caps</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c2330; --border: #2d333b;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --green: #3fb950;
+    --amber: #d29922; --red: #f85149; --purple: #bc8cff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         line-height: 1.5; }
+  header { padding: 20px 24px; border-bottom: 1px solid var(--border);
+           display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  header h1 { margin: 0; font-size: 22px; }
+  header h1 span { color: var(--accent); }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 960px; margin: 0 auto; padding: 20px 16px 60px; }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+            padding: 18px; margin-bottom: 18px; }
+  section h2 { margin: 0 0 4px; font-size: 17px; }
+  section .hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input, textarea { width: 100%; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 9px 10px; font-size: 14px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 160px; }
+  button { background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    padding: 9px 16px; font-size: 14px; cursor: pointer; margin-top: 12px; }
+  button:hover { filter: brightness(1.15); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  button.danger { background: var(--red); }
+  button.green { background: var(--green); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 12.5px; word-break: break-all; }
+  .addr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  a { color: var(--accent); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge.Created { background: #1f3a5f; color: #79c0ff; }
+  .badge.Funded { background: #3d2b00; color: #e3b341; }
+  .badge.Released { background: #0f3d1e; color: #56d364; }
+  .badge.Refunded { background: #4a1d1d; color: #ff7b72; }
+  .badge.Expired { background: #333; color: #c9d1d9; }
+  .invoice { border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 12px;
+             background: var(--panel2); }
+  .invoice .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .invoice .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                   gap: 4px 16px; margin: 10px 0; font-size: 13.5px; }
+  .invoice .grid b { color: var(--muted); font-weight: 500; }
+  .invoice .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .invoice .actions button { margin-top: 4px; }
+  #banner { background: #3d2b00; border: 1px solid var(--amber); color: #e3b341;
+            border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; display: none; }
+  #status { font-size: 13px; color: var(--muted); }
+  #activity li { font-size: 13px; margin-bottom: 6px; }
+  #activity { list-style: none; padding: 0; margin: 0; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0;
+        border-bottom: 1px solid var(--border); font-size: 14px; }
+  .kv:last-child { border-bottom: none; }
+  .kv span:first-child { color: var(--muted); }
+  .agent-row { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+               flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .agent-row:last-child { border-bottom: none; }
+  footer { text-align: center; color: var(--muted); font-size: 12.5px; padding: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Aevum Pay <span>— Escrow Invoices</span></h1>
+    <p>Pay invoices through escrow on Aevum testnet. Agents can fund invoices for you, up to a cap you set — they never hold your funds.</p>
+  </div>
+  <div>
+    <button id="connectBtn">Connect MetaMask</button>
+    <div id="status" style="margin-top:6px;">Not connected</div>
+  </div>
+</header>
+
+<main>
+  <div id="banner"></div>
+
+  <section id="walletSection">
+    <h2>Wallet</h2>
+    <p class="hint">Aevum testnet (chain 44005). Balances refresh after each transaction.</p>
+    <div class="kv"><span>Address</span><span class="addr" id="walletAddress">—</span></div>
+    <div class="kv"><span>tUSD8 balance</span><span id="tusd8Balance">—</span></div>
+    <div class="kv"><span>tQDAY balance</span><span id="tqdayBalance">—</span></div>
+    <div class="kv"><span>tUSD8 allowance for escrow</span><span id="allowance">—</span></div>
+    <button id="approveBtn" class="secondary" disabled>Approve tUSD8 (one-time, unlimited)</button>
+    <button id="refreshBtn" class="secondary" disabled>Refresh balances</button>
+  </section>
+
+  <section id="createSection">
+    <h2>Create invoice</h2>
+    <p class="hint">You are the payer. The payee can be a wallet address or a name registered on-chain (see Name Registry below).</p>
+    <label for="payeeInput">Payee (address or registered name)</label>
+    <input id="payeeInput" placeholder="0x… or alice">
+    <div class="row">
+      <div>
+        <label for="amountInput">Amount (tUSD8)</label>
+        <input id="amountInput" type="number" min="0" step="any" placeholder="10">
+      </div>
+      <div>
+        <label for="deadlineInput">Deadline (hours from now)</label>
+        <input id="deadlineInput" type="number" min="1" step="any" placeholder="48">
+      </div>
+    </div>
+    <label for="memoInput">Memo</label>
+    <input id="memoInput" placeholder="e.g. Logo design — milestone 1">
+    <button id="createBtn" disabled>Create invoice</button>
+  </section>
+
+  <section id="invoicesSection">
+    <h2>Invoices</h2>
+    <p class="hint">Read from on-chain events. Funded invoices past their deadline can be claimed back by anyone (funds return to the payer).</p>
+    <button id="reloadInvoicesBtn" class="secondary" disabled>Reload invoices</button>
+    <div id="invoiceList" style="margin-top:14px;"><p style="color:var(--muted)">Connect your wallet to load invoices.</p></div>
+  </section>
+
+  <section id="agentSection">
+    <h2>Agents &amp; spend caps</h2>
+    <p class="hint">Authorize an agent address to fund your invoices, up to a total cap. The agent spends from <em>your</em> wallet (you must approve the escrow first) — it never holds your funds. Revoke any time. The agent itself runs <span class="mono">agent/agent.mjs</span>.</p>
+    <div class="row">
+      <div>
+        <label for="agentAddrInput">Agent address</label>
+        <input id="agentAddrInput" placeholder="0x…">
+      </div>
+      <div>
+        <label for="agentCapInput">Total cap (tUSD8)</label>
+        <input id="agentCapInput" type="number" min="0" step="any" placeholder="100">
+      </div>
+    </div>
+    <button id="authorizeBtn" disabled>Authorize agent</button>
+    <h3 style="margin:20px 0 6px; font-size: 15px;">Agents I authorized</h3>
+    <div id="agentList"><p style="color:var(--muted)">—</p></div>
+    <h3 style="margin:20px 0 6px; font-size: 15px;">Check remaining cap</h3>
+    <div class="row">
+      <div>
+        <label for="lookupPayerInput">Payer address</label>
+        <input id="lookupPayerInput" placeholder="0x…">
+      </div>
+      <div>
+        <label for="lookupAgentInput">Agent address</label>
+        <input id="lookupAgentInput" placeholder="0x…">
+      </div>
+    </div>
+    <button id="lookupBtn" class="secondary" disabled>Check remaining cap</button>
+    <div id="lookupResult" style="margin-top:10px; font-size:14px;"></div>
+  </section>
+
+  <section id="nameSection">
+    <h2>Name registry</h2>
+    <p class="hint">Register a short name for your address (first-come, first-served; only you can re-register your own name). Anyone can resolve a name to an address and use it as a payee.</p>
+    <label for="nameInput">Your name</label>
+    <input id="nameInput" placeholder="alice">
+    <button id="registerNameBtn" disabled>Register name for my address</button>
+    <div class="row" style="margin-top:14px;">
+      <div>
+        <label for="resolveInput">Resolve a name</label>
+        <input id="resolveInput" placeholder="alice">
+      </div>
+    </div>
+    <button id="resolveBtn" class="secondary" disabled>Resolve</button>
+    <button id="useAsPayeeBtn" class="secondary" disabled>Use as payee</button>
+    <div id="resolveResult" style="margin-top:10px; font-size:14px;"></div>
+  </section>
+
+  <section id="activitySection">
+    <h2>Recent activity</h2>
+    <p class="hint">Every transaction shows its hash and an explorer link.</p>
+    <ul id="activity"><li style="color:var(--muted)">No transactions yet.</li></ul>
+  </section>
+</main>
+
+<footer>
+  Aevum Pay — Aevum Builder Challenge #1 (DoraHacks). Testnet only, no real funds.<br>
+  Escrow contract: <span class="addr" id="escrowAddrFooter">—</span> ·
+  tUSD8: <span class="addr">0x456569838f1d43009A91ebA4263147Afd7233483</span> ·
+  Explorer: <a href="https://explorer-test.qday.info" target="_blank" rel="noopener">explorer-test.qday.info</a>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

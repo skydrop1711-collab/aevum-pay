@@ -1,0 +1,17 @@
+# Secrets — never commit these
+.env
+*.env
+*.keystore
+**/.env
+
+# Dependencies
+node_modules/
+
+# Foundry build artifacts
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+lib/
+
+# OS / editor
+.DS_Store

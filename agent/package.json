@@ -1,0 +1,1 @@
+{"dependencies":{"dotenv":"^18.0.10","ethers":"^6.13.4"},"description":"Agent script for Aevum Pay: funds a payer's escrow invoice up to an on-chain spend cap (Aevum testnet).","license":"MIT","name":"aevum-pay-agent","private":true,"scripts":{"start":"node agent.mjs"},"type":"module","version":"1.0.0"}
